@@ -35,13 +35,13 @@ Open the Wazuh dashboard, go to **Modules -> Security events**, and filter on `a
 
 The level-12 alert is the one a SOC analyst would chase. Levels 5 and 3 are noise on their own and only become useful in correlation.
 
-The alert timeline shows the burst clearly — a sharp spike of level-5 and level-7 events over a few seconds, exactly the pattern a fast scripted attack produces.
+The alert timeline shows the burst clearly - a sharp spike of level-5 and level-7 events over a few seconds, exactly the pattern a fast scripted attack produces.
 
-![Alert level evolution — spike of auth failures visible as a burst at the attack timestamp](../../docs/images/wazuh-alert-level-evolution.png)
+![Alert level evolution - spike of auth failures visible as a burst at the attack timestamp](../images/wazuh-alert-level-evolution.png)
 
 The MITRE ATT&CK breakdown confirms the technique mapping is wired up correctly: Password Guessing (T1110.001) dominates, with SSH (T1021.004) as the access vector.
 
-![Top MITRE ATT&CKs — Password Guessing dominant, SSH as access vector](../../docs/images/wazuh-mitre-attck-donut.png)
+![Top MITRE ATT&CKs - Password Guessing dominant, SSH as access vector](../images/wazuh-mitre-attck-donut.png)
 
 ## Why the rules are written this way
 

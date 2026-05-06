@@ -65,7 +65,7 @@ Wait roughly two minutes for the indexer to settle, then visit:
 - DVWA: <http://localhost:8080> (admin / password, then click "Create Database")
 - Ubuntu target: `ssh -p 2222 labuser@localhost` (password `Password1`)
 
-![Wazuh modules overview — 1 active agent, all modules available](docs/images/wazuh-modules-overview.png)
+![Wazuh modules overview - 1 active agent, all modules available](docs/images/wazuh-modules-overview.png)
 
 Tear down with `.\scripts\setup\teardown.ps1` on Windows (add `-Wipe` to remove volumes too) or `./scripts/setup/teardown.sh` on macOS/Linux.
 
@@ -79,15 +79,15 @@ Tear down with `.\scripts\setup\teardown.ps1` on Windows (add `-Wipe` to remove 
 
 Each walkthrough is structured the same way: the attack command, the alert chain it should produce in the Wazuh dashboard, and a short note on what the detection misses and how I would tune it.
 
-### Live results — SSH brute-force
+### Live results - SSH brute-force
 
 After running `scripts/attacks/01-ssh-bruteforce.sh` the Security Events dashboard shows 14 authentication failures, 2 successful logins, and Password Guessing as the dominant MITRE ATT&CK technique.
 
-![Security events dashboard after SSH brute-force — 14 auth failures, MITRE ATT&CK breakdown](docs/images/wazuh-security-events-dashboard.png)
+![Security events dashboard after SSH brute-force - 14 auth failures, MITRE ATT&CK breakdown](docs/images/wazuh-security-events-dashboard.png)
 
 The Events tab breaks down each individual failure and maps it to T1110.001 (Credential Access) and T1021.004 (Lateral Movement via SSH).
 
-![Security events list — rules 5760 and 5503 firing per failed attempt from ubuntu.target](docs/images/wazuh-security-events-list.png)
+![Security events list - rules 5760 and 5503 firing per failed attempt from ubuntu.target](docs/images/wazuh-security-events-list.png)
 
 ## Repository layout
 
