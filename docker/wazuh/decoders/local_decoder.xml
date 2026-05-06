@@ -1,0 +1,10 @@
+<!--
+  Custom decoders for home-soc-lab. Empty by default - placeholder for
+  log sources you add later (e.g. school MIS, custom application logs).
+  Wazuh ships with decoders for sshd, Apache, syslog, etc., which already
+  cover the three documented scenarios.
+-->
+
+<decoder name="home-soc-lab-placeholder">
+  <prematch>^home-soc-lab</prematch>
+</decoder>

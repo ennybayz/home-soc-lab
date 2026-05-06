@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+docker/wazuh/config/wazuh_dashboard/opensearch_dashboards.yml
+docker/wazuh/config/wazuh_dashboard/wazuh.yml

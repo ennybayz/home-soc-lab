@@ -1,0 +1,35 @@
+<!--
+  Drop-in additions for /var/ossec/etc/ossec.conf on a Wazuh agent.
+  These extend the default agent configuration with:
+    - Apache access/error log monitoring (for the DVWA SQLi scenario)
+    - File Integrity Monitoring on /tmp and /dev/shm (for the FIM scenario)
+    - Real-time syscheck so drops are caught within seconds
+-->
+
+<ossec_config>
+
+  <!-- Apache access/error logs from the DVWA container if mounted in.
+       For containerised DVWA, set up log forwarding via a sidecar or
+       parse from the docker logs driver. -->
+  <localfile>
+    <log_format>apache</log_format>
+    <location>/var/log/apache2/access.log</location>
+  </localfile>
+
+  <localfile>
+    <log_format>apache</log_format>
+    <location>/var/log/apache2/error.log</location>
+  </localfile>
+
+  <!-- File Integrity Monitoring - real-time on hot paths -->
+  <syscheck>
+    <directories realtime="yes" check_all="yes">/tmp</directories>
+    <directories realtime="yes" check_all="yes">/dev/shm</directories>
+    <directories realtime="yes" check_all="yes">/var/www/html</directories>
+
+    <!-- Reduce noise from rapidly changing system paths -->
+    <ignore>/tmp/systemd-private-*</ignore>
+    <ignore>/tmp/.X11-unix</ignore>
+  </syscheck>
+
+</ossec_config>

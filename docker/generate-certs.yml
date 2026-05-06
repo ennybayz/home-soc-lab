@@ -1,0 +1,18 @@
+# One-shot compose file that generates the SSL certificates the Wazuh
+# stack needs. Run before the first `docker compose up`:
+#
+#   cd docker/
+#   docker compose -f generate-certs.yml run --rm generator
+#
+# After it exits, the wazuh/config/wazuh_indexer_ssl_certs/ directory will
+# contain the cert bundle referenced by docker-compose.yml.
+
+name: home-soc-lab-certs
+
+services:
+  generator:
+    image: wazuh/wazuh-certs-generator:0.0.2
+    hostname: wazuh-certs-generator
+    volumes:
+      - ./wazuh/config/wazuh_indexer_ssl_certs/:/certificates/
+      - ./wazuh/config/certs.yml:/config/certs.yml

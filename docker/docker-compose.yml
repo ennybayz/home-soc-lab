@@ -1,0 +1,196 @@
+# home-soc-lab - Wazuh single-node SOC stack
+#
+# Architecture:
+#   SOC subnet (172.26.0.0/24): Wazuh manager, indexer, dashboard.
+#   Target subnet (172.27.0.0/24): DVWA web app, Ubuntu host with SSH.
+#   The Wazuh manager is dual-homed across both, mirroring how a SIEM sits
+#   between a management plane and the estate it monitors.
+#
+# Memory budget (host: 16 GB):
+#   indexer ~2 GB heap | manager ~1 GB | dashboard ~512 MB
+#   DVWA stack ~512 MB | Ubuntu target ~256 MB
+#
+# Pinned to Wazuh 4.7.5 for reproducibility. To upgrade, bump WAZUH_VERSION
+# in .env and re-run `docker compose pull && docker compose up -d`.
+
+name: home-soc-lab
+
+services:
+  # SOC stack
+  wazuh.manager:
+    image: wazuh/wazuh-manager:${WAZUH_VERSION:-4.7.5}
+    container_name: wazuh.manager
+    hostname: wazuh.manager
+    restart: unless-stopped
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 655360
+        hard: 655360
+    ports:
+      - "1514:1514"     # agent log ingestion
+      - "1515:1515"     # agent enrolment
+      - "514:514/udp"   # syslog (optional)
+      - "55000:55000"   # Wazuh API
+    environment:
+      - INDEXER_URL=https://wazuh.indexer:9200
+      - INDEXER_USERNAME=admin
+      - INDEXER_PASSWORD=${INDEXER_PASSWORD}
+      - FILEBEAT_SSL_VERIFICATION_MODE=full
+      - SSL_CERTIFICATE_AUTHORITIES=/etc/ssl/root-ca.pem
+      - SSL_CERTIFICATE=/etc/ssl/filebeat.pem
+      - SSL_KEY=/etc/ssl/filebeat.key
+      - API_USERNAME=wazuh-wui
+      - API_PASSWORD=${API_PASSWORD}
+    volumes:
+      - wazuh_api_configuration:/var/ossec/api/configuration
+      - wazuh_etc:/var/ossec/etc
+      - wazuh_logs:/var/ossec/logs
+      - wazuh_queue:/var/ossec/queue
+      - wazuh_var_multigroups:/var/ossec/var/multigroups
+      - wazuh_integrations:/var/ossec/integrations
+      - wazuh_active_response:/var/ossec/active-response/bin
+      - wazuh_agentless:/var/ossec/agentless
+      - wazuh_wodles:/var/ossec/wodles
+      - filebeat_etc:/etc/filebeat
+      - filebeat_var:/var/lib/filebeat
+      - ./wazuh/config/wazuh_indexer_ssl_certs/root-ca-manager.pem:/etc/ssl/root-ca.pem
+      - ./wazuh/config/wazuh_indexer_ssl_certs/wazuh.manager.pem:/etc/ssl/filebeat.pem
+      - ./wazuh/config/wazuh_indexer_ssl_certs/wazuh.manager-key.pem:/etc/ssl/filebeat.key
+      # NOTE: these bind mounts pre-populate /var/ossec/etc, which makes the
+      # Wazuh entrypoint skip its first-boot seeding step. They are SAFE to
+      # keep enabled only after the wazuh_etc volume has been populated by a
+      # successful first boot without these mounts. If you ever wipe the
+      # wazuh_etc volume, comment these out, boot once, then re-enable.
+      - ./wazuh/rules/local_rules.xml:/var/ossec/etc/rules/local_rules.xml
+      - ./wazuh/decoders/local_decoder.xml:/var/ossec/etc/decoders/local_decoder.xml
+    networks:
+      soc:
+        ipv4_address: 172.26.0.10
+      lab:
+        ipv4_address: 172.27.0.10
+
+  wazuh.indexer:
+    image: wazuh/wazuh-indexer:${WAZUH_VERSION:-4.7.5}
+    container_name: wazuh.indexer
+    hostname: wazuh.indexer
+    restart: unless-stopped
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - "9200:9200"
+    environment:
+      - "OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g"
+    volumes:
+      - wazuh_indexer_data:/var/lib/wazuh-indexer
+      - ./wazuh/config/wazuh_indexer_ssl_certs/root-ca.pem:/usr/share/wazuh-indexer/certs/root-ca.pem
+      - ./wazuh/config/wazuh_indexer_ssl_certs/wazuh.indexer-key.pem:/usr/share/wazuh-indexer/certs/wazuh.indexer.key
+      - ./wazuh/config/wazuh_indexer_ssl_certs/wazuh.indexer.pem:/usr/share/wazuh-indexer/certs/wazuh.indexer.pem
+      - ./wazuh/config/wazuh_indexer_ssl_certs/admin.pem:/usr/share/wazuh-indexer/certs/admin.pem
+      - ./wazuh/config/wazuh_indexer_ssl_certs/admin-key.pem:/usr/share/wazuh-indexer/certs/admin-key.pem
+      - ./wazuh/config/wazuh_indexer/wazuh.indexer.yml:/usr/share/wazuh-indexer/opensearch.yml
+      - ./wazuh/config/wazuh_indexer/internal_users.yml:/usr/share/wazuh-indexer/opensearch-security/internal_users.yml
+    networks:
+      soc:
+        ipv4_address: 172.26.0.20
+
+  wazuh.dashboard:
+    image: wazuh/wazuh-dashboard:${WAZUH_VERSION:-4.7.5}
+    container_name: wazuh.dashboard
+    hostname: wazuh.dashboard
+    restart: unless-stopped
+    ports:
+      - "443:5601"
+    environment:
+      - INDEXER_USERNAME=admin
+      - INDEXER_PASSWORD=${INDEXER_PASSWORD}
+      - WAZUH_API_URL=https://wazuh.manager
+      - DASHBOARD_USERNAME=kibanaserver
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD}
+      - API_USERNAME=wazuh-wui
+      - API_PASSWORD=${API_PASSWORD}
+    volumes:
+      - ./wazuh/config/wazuh_indexer_ssl_certs/wazuh.dashboard.pem:/usr/share/wazuh-dashboard/certs/wazuh-dashboard.pem
+      - ./wazuh/config/wazuh_indexer_ssl_certs/wazuh.dashboard-key.pem:/usr/share/wazuh-dashboard/certs/wazuh-dashboard-key.pem
+      - ./wazuh/config/wazuh_indexer_ssl_certs/root-ca.pem:/usr/share/wazuh-dashboard/certs/root-ca.pem
+      - ./wazuh/config/wazuh_dashboard/opensearch_dashboards.yml:/usr/share/wazuh-dashboard/config/opensearch_dashboards.yml
+      - ./wazuh/config/wazuh_dashboard/wazuh.yml:/usr/share/wazuh-dashboard/data/wazuh/config/wazuh.yml
+      - wazuh-dashboard-config:/usr/share/wazuh-dashboard/data/wazuh/config
+      - wazuh-dashboard-custom:/usr/share/wazuh-dashboard/plugins/wazuh/public/assets/custom
+    depends_on:
+      - wazuh.indexer
+    links:
+      - wazuh.indexer:wazuh.indexer
+      - wazuh.manager:wazuh.manager
+    networks:
+      soc:
+        ipv4_address: 172.26.0.30
+
+  # Targets - intentionally vulnerable, kept on a separate network
+  dvwa:
+    # Damn Vulnerable Web Application - classic web vulns (SQLi, XSS, etc.)
+    image: vulnerables/web-dvwa:latest
+    container_name: dvwa
+    hostname: dvwa
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    networks:
+      lab:
+        ipv4_address: 172.27.0.20
+
+  ubuntu.target:
+    # Generic Ubuntu host. Wazuh agent installed via scripts/setup/install-agent.sh
+    # SSH exposed to simulate brute-force attacks against a corporate-style host.
+    build:
+      context: ./ubuntu-target
+      dockerfile: Dockerfile
+    image: home-soc-lab/ubuntu-target:latest
+    container_name: ubuntu.target
+    hostname: ubuntu.target
+    restart: unless-stopped
+    ports:
+      - "2222:22"
+    cap_add:
+      - SYS_PTRACE
+    networks:
+      lab:
+        ipv4_address: 172.27.0.30
+
+networks:
+  soc:
+    name: home-soc-lab_soc
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.26.0.0/24
+  lab:
+    name: home-soc-lab_lab
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.27.0.0/24
+
+# Volumes are named so `docker compose down -v` removes them cleanly.
+volumes:
+  wazuh_api_configuration:
+  wazuh_etc:
+  wazuh_logs:
+  wazuh_queue:
+  wazuh_var_multigroups:
+  wazuh_integrations:
+  wazuh_active_response:
+  wazuh_agentless:
+  wazuh_wodles:
+  filebeat_etc:
+  filebeat_var:
+  wazuh_indexer_data:
+  wazuh-dashboard-config:
+  wazuh-dashboard-custom:

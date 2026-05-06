@@ -1,0 +1,18 @@
+# Certificate generation manifest used by wazuh-certs-generator.
+# Names below MUST match the hostname/container name in docker-compose.yml.
+
+nodes:
+  # Wazuh indexer node
+  indexer:
+    - name: wazuh.indexer
+      ip: "172.26.0.20"
+
+  # Wazuh manager and Filebeat that ships logs to the indexer
+  server:
+    - name: wazuh.manager
+      ip: "172.26.0.10"
+
+  # Wazuh dashboard
+  dashboard:
+    - name: wazuh.dashboard
+      ip: "172.26.0.30"
